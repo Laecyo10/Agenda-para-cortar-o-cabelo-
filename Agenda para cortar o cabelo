@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda do Cabeleireiro</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f2f2f2;
+}
+
+.header {
+    background: #111;
+    color: #fff;
+    padding: 15px;
+    text-align: center;
+    font-size: 20px;
+}
+
+.container {
+    padding: 15px;
+}
+
+.card {
+    background: #fff;
+    border-radius: 15px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+h3 {
+    margin-top: 0;
+}
+
+label {
+    font-weight: bold;
+    display: block;
+    margin-top: 10px;
+}
+
+input, select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    margin-top: 5px;
+}
+
+.horarios {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.horario {
+    padding: 10px;
+    text-align: center;
+    border-radius: 8px;
+    background: #e0e0e0;
+    cursor: pointer;
+}
+
+.horario.active {
+    background: #25d366;
+    color: #fff;
+}
+
+.horario.bloqueado {
+    background: #bbb;
+    color: #777;
+    cursor: not-allowed;
+}
+
+button {
+    width: 100%;
+    padding: 15px;
+    background: #25d366;
+    color: #fff;
+    font-size: 16px;
+    border: none;
+    border-radius: 10px;
+    margin-top: 15px;
+    cursor: pointer;
+}
+
+.btn-cancelar {
+    background: #e53935;
+    margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">💈 Agenda do Cabeleireiro</div>
+
+<div class="container">
+
+<!-- CLIENTE -->
+<div class="card">
+<h3>📅 Agendar Horário</h3>
+
+<label>Nome</label>
+<input type="text" id="nome">
+
+<label>Serviço</label>
+<select id="servico">
+    <option>Corte Masculino</option>
+    <option>Corte Feminino</option>
+    <option>Barba</option>
+    <option>Corte + Barba</option>
+</select>
+
+<label>Dia</label>
+<input type="date" id="dia" onchange="carregarHorarios()">
+
+<label>Horário</label>
+<div class="horarios" id="horarios"></div>
+
+<button onclick="agendar()">Confirmar no WhatsApp</button>
+</div>
+
+<!-- PAINEL CABELEIREIRO -->
+<div class="card">
+<h3>💈 Painel do Cabeleireiro</h3>
+<button onclick="carregarPainel()">Atualizar Agenda</button>
+<div id="listaAgendamentos"></div>
+</div>
+
+</div>
+
+<script>
+const horariosBase = [
+    "09:00","10:00","11:00",
+    "13:00","14:00","15:00",
+    "16:00","17:00","18:00"
+];
+
+let horarioSelecionado = "";
+
+/* CLIENTE */
+function carregarHorarios() {
+    const dia = document.getElementById("dia").value;
+    const container = document.getElementById("horarios");
+    container.innerHTML = "";
+    horarioSelecionado = "";
+
+    if (!dia) return;
+
+    const data = new Date(dia + "T00:00:00");
+    if (data.getDay() === 0) {
+        alert("Domingo não atendemos ❌");
+        document.getElementById("dia").value = "";
+        return;
+    }
+
+    const agendamentos = JSON.parse(localStorage.getItem("agendamentos")) || [];
+
+    horariosBase.forEach(hora => {
+        const div = document.createElement("div");
+        div.className = "horario";
+        div.innerText = hora;
+
+        const ocupado = agendamentos.some(a => a.dia === dia && a.hora === hora);
+
+        if (ocupado) {
+            div.classList.add("bloqueado");
+        } else {
+            div.onclick = () => selecionarHorario(div, hora);
+        }
+
+        container.appendChild(div);
+    });
+}
+
+function selecionarHorario(el, hora) {
+    document.querySelectorAll(".horario").forEach(h => h.classList.remove("active"));
+    el.classList.add("active");
+    horarioSelecionado = hora;
+}
+
+function agendar() {
+    const nome = document.getElementById("nome").value;
+    const servico = document.getElementById("servico").value;
+    const dia = document.getElementById("dia").value;
+
+    if (!nome || !dia || !horarioSelecionado) {
+        alert("Preencha todos os campos!");
+        return;
+    }
+
+    const agendamentos = JSON.parse(localStorage.getItem("agendamentos")) || [];
+
+    agendamentos.push({ nome, servico, dia, hora: horarioSelecionado });
+
+    localStorage.setItem("agendamentos", JSON.stringify(agendamentos));
+
+    const telefone = "5599999999999"; // COLOQUE SEU WHATSAPP AQUI
+
+    const msg = `Olá, me chamo ${nome} e gostaria de agendar:%0A
+Serviço: ${servico}%0A
+Dia: ${dia}%0A
+Horário: ${horarioSelecionado}`;
+
+    window.open(`https://wa.me/${telefone}?text=${msg}`, "_blank");
+
+    carregarHorarios();
+}
+
+/* PAINEL CABELEIREIRO */
+function carregarPainel() {
+    const lista = document.getElementById("listaAgendamentos");
+    lista.innerHTML = "";
+
+    const agendamentos = JSON.parse(localStorage.getItem("agendamentos")) || [];
+
+    agendamentos.forEach((a, i) => {
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `
+            <strong>${a.nome}</strong><br>
+            ${a.servico}<br>
+            ${a.dia} - ${a.hora}
+            <button class="btn-cancelar" onclick="cancelar(${i})">Cancelar</button>
+        `;
+        lista.appendChild(div);
+    });
+}
+
+function cancelar(index) {
+    if (!confirm("Deseja cancelar este horário?")) return;
+
+    const agendamentos = JSON.parse(localStorage.getItem("agendamentos")) || [];
+    agendamentos.splice(index, 1);
+    localStorage.setItem("agendamentos", JSON.stringify(agendamentos));
+
+    carregarPainel();
+    carregarHorarios();
+}
+</script>
+
+</body>
+</html>
